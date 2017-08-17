@@ -1,0 +1,188 @@
+
+----共享内存  
+
+	分析网点密钥信息 元素：		seckey_Info { seckey clientID serverID seckeyid status }  ---> 共享内存。
+			
+		seckey		clientID	serverID	seckeyid	status
+		
+		abc123		1111		0001		100		0
+
+		abc456		2222		0001		100		0
+
+		a12bc3		2222		0001		104		0		
+
+	模块组织关系：
+
+		客户端：
+
+			协商：写共享内存。	校验：读共享内存。	注销：读、写
+
+		服务器：
+			协商：写共享内存。	校验：读共享内存。	注销：读、写
+	存储：
+
+		客户端：	seckey_Info pSeckey_Info
+		   1
+		   :
+		   N
+		服务器		seckey_Info pSeckey_Info[N]
+
+	
+密钥信息结构体操作函数接口设计：
+
+	创建、打开共享内存：
+
+		int seckeyShm_init(int maxnode, int shmkey, int *shmhdl); 
+
+	写密钥信息到共享内存：
+
+		int seckeyShm_write(seckey_Info *pSeckey_Info, int shmhdl， int maxnode);
+
+	读密钥网点信息。
+
+		int seckeyShm_read(seckey_Info **pSeckey_Info, int shmhdl, char *clientID, char *serverID, int maxnode);
+
+	int seckeyShm_destroy();
+
+模块封装：
+
+	keymng_Shmop.c
+
+		信息结构体 读写操作函数实现。
+
+	keymng_Shmop.h
+
+		密钥信息结构体 定义。
+
+			seckey_Info { seckey clientID serverID seckeyid status } 
+
+		网点密钥信息结构体 读写操作函数声明。
+
+生成密钥：
+
+	算法：
+
+		自定义方法：    abc	123	a1b2c3/abc123/ab1c23/321cba....	
+
+				abcdef 	abcdef   aabbccddeeff
+
+		开源算法：	哈希算法、sha1、sha256、md5 。。。。。
+
+============================================================================
+
+守护进程：
+
+	运行于操作系统后台的一个服务进程。周期性的执行某个任务，或者等待某事件的发生。
+
+	没有控制终端，不会随用户的退出、注销而消失。 通常采用 以 d 结尾命名方式。  daemon  
+
+创建步骤：
+
+	1. 不能是父进程 fork() > 0  exit();
+
+	2. 创建新会话，子进程成为会长 setsid();  
+
+	3. 关闭/dup2 打开文件描述符。 0/1/2      /dev/null
+
+	4. 改变根目录位置。 chdir(); --> 确保守护进程处于有效工作目录位置。
+
+	5. 设置打开文件掩码 umask 
+
+	6. 守护进程业务逻辑 while（1）{ ..... }
+
+	7. 管理守护进程终止。 脚本 
+
+
+windows：
+
+	回车、换行:	\r\n
+	
+Linux：
+
+	\n		\r --> ^M
+
+
+创建守护进程：
+
+	#define CREATE_DAEMON if(fork()>0)exit(1);setsid();
+
+
+守护进程管理脚本：
+
+	#!/bin/bash
+
+	myuser=`whoami`
+
+	mypid=`ps -u ${myuser} | grep keymngserver | awk {'print $1'}`
+
+	if [ -z ${mypid} ]; then
+       		echo 'keymngserver is not start.'
+        	exit 1;
+	fi
+
+	kill -9 $mypid
+	echo 'The keymngserver is killed.'
+
+	
+==============================================================
+
+密钥校验：
+
+	加密校验：	非对称加密方法 保护 密钥。 --》 安全系数 较高
+
+	片段校验：	0-10 字节  --》 req.r1[]
+	
+int MngClient_Check(&pCltInfo);
+
+客户端：
+
+	1. 读取共享内存 --> seckey 前10 字节  --> req.r1[]
+
+		KeyMng_ShmRead（）
+
+	2. 组织请求报文	req.clientID、serverID、cmdType....
+
+	3. 编码请求报文
+
+	4. 发送请求报文 (建立连接)
+
+	5. 接收应答报文 TLV(Res)
+
+	6. 解码应答报文 --> rv	
+
+	7. 展示结果。
+
+
+int MngServer_Check(MngServer_Info *svrInfo, MsgKey_Req *msgkeyReq, unsigned char **outData, int *datalen);
+	
+服务器：
+
+	1. 读取共享内存 --> seckey 前10 字节 --> 对比 msgkeyReq.r1[]  --> Res.rv: 成功：0 	失败：1
+
+		KeyMng_ShmRead（）
+
+	2. 组织 res 应答报文
+
+	3. 编码 应答报文。
+
+	4. 传出
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

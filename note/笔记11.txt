@@ -1,0 +1,311 @@
+
+四大基础组件：
+
+	报文编码、解码：Linux:	libmessagereal.so -- keymng_msg.h	Windows: libmessagereal.dll -- libmessagereal.lib -- keymng_msg.h
+
+	socket通信组件：Linux:	libitcastsocket.so -- poolsocket.h	Windows: libitcastsocket.dll -- libitcastsocket.lib -- poolsocket.h
+
+	共享内存组件：	Linux:	myipc_shm.c -- myipc_shm.h	Windows:  myipc_shm.c -- myipc_shm.h 
+
+	数据库访问组件：Linux:  libicdbapi.so -- keymng_dbop.h  Windows:  无
+
+
+
+对接 Linux 源码到 windows，调整错误。
+
+	0. xxx.c --> xxx.cpp
+
+	1. ICLevelName --> keyMngICLevelName		解决命名冲突：
+
+	2. open --》 fopen(fileName, "w+")；	close --> fclose();
+
+	3. pNode = mapaddr + sizeof(NodeSHMInfo)*i;	---》 pNode = (NodeSHMInfo *)mapaddr + i;	共享内存操作（3处）
+
+	4. Linux 特有的 头文件删除。 添加 < stdafx.h >
+
+	5. 日志文件使用的 宏 。
+
+
+对接协商密钥，写listContrl控件：
+
+	1. 修改 agree函数原型。  .h 
+
+		int MngClient_Agree(MngClient_Info *pCltInfo);  改为： int MngClient_Agree(MngClient_Info *pCltInfo, NodeSHMInfo *nodeSHMInfo);
+
+	2. 修改 .cpp 实现，将写入共享内存的结构体，传出。NodeSHMInfo 
+
+	3. 将 传出的 密钥信息结构体，写至 listContrl 控件 （插入一行）
+
+		DbInitListSecNode((CString)nodeSHMInfo.clientId,(CString)nodeSHMInfo.serverId, nodeSHMInfo.seckeyid, nodeSHMInfo.status, time);
+
+		
+
+
+
+
+
+
+
+
+
+
+
+------外联接口设计思想：
+
+	.so/.dll 和 .h
+
+	项目中外联接口主要有两个作用：	1. 读共享内存。	2. 加解密数据。
+
+	函数接口：
+
+		int DataEnc(char *clientid, char *serverid, unsigned char *indata, int indatalen, unsigned char *oudata, int *outdatalen);
+
+		int DataDec(char *clientid, char * serverid, unsigned char *indata, int indatalen, unsigned char *outdata, int *outdatalen);
+
+		int tag = 0 / 1; 加密， 解密。
+
+		int DataEncAndDec(char *clientid, char *serverid, unsigned char *indata, int indatalen, unsigned char *outdata, int outdatalen);
+
+
+	操作共享内存时， 需要使用到 keyid。它可以以两种方式传入到函数接口中：
+
+		1. 直接作为函数接口，传递到函数中。
+
+			int DataEncAndDec(char *clientid, char *serverid, unsigned char *indata, int indatalen, 
+					  unsigned char *outdata, int outdatalen， int keyid, int maxnode);
+
+		2. 接口读配置文件获取。
+
+			配置文件应存放在: $(HOME)/etc/1.ini   e.g. KEYID=1111 、 MAXNODE=10
+
+			这样，直接调接口效率会比较低。所以应封装初始化函数和结束函数给用户。
+
+			int DataEncAndDec_init(char *filename);		//读配置文件，获取数据存入全局变量中。
+
+			int DataEncAndDec(char *clientid, char *serverid, unsigned char *indata, int indatalen, 
+					  unsigned char *outdata, int outdatalen);
+
+			int DataEncAndDec_finish();
+
+
+	项目开发中，不同的用户需求，选用不同的接口封装方式，效率几近相同。没有孰优孰劣之分。
+
+
+
+=======对称加密：   加密秘钥和解密密钥一致。
+
+	
+	加密三要素： 
+
+		y = ax + b   明文、密文， 密钥， 算法。
+
+	常见对称加密体系：
+
+		AES	DES	3DES	SM3/n  
+
+
+	分组加密原理：	
+
+		采用分组加密的方式：对 不满足 8 字节部分，打padding。 但，从补丁明文恢复到原始明文时，有问题。无法区分原始明文和补丁明文。
+
+		缺几补几。
+
+		补丁长度 = 分组数据长度 - 数据长度 % 8   （缺8补8）	0-7   打补丁
+
+			只对一整块数据，只做一次 padding 操作，		缺几补几。  
+
+			大数据要分块传输、存储。无论多大的数据，只对最后一个分组进行 padding 操作。在中间不能进行该操作。
+
+			一般加密供应商给用户应提供两个API函数： 一个打padding的函数、一个不打padding的API函数。
+
+			大多数用户不了解加密过程，通常对其隐藏实现细节。只提供加密、解密接口。
+
+
+-------加密大文件加解密案例：
+
+		cryptproj-文件加密项目
+
+
+-------外联接口的使用：
+
+		appinterface/
+
+
+=======非对称加密：
+
+	特征：加密密钥 和 解密密钥，不一样。 密钥对(公钥、私钥)。    
+
+	银行开户：
+
+		1. 提交身份证 
+
+		2. 柜员 审核 ---> 人为管理
+
+			1. 调用银行内部密钥生成系统，得到密钥对（公钥、私钥）。
+
+			2. 将私钥灌入 KEY 中。（网银key、U盾）
+
+			3. 将 公钥 + 个人身份信息 ---> 数字证书。 	（包含“公钥”和“个人身份信息”两部分内容）
+
+	数字证书： 
+
+		简单理解成“网络身份证”。解决了虚拟世界（网络世界）中，两端之间身份识别问题。
+
+
+	示例：
+		360 → 菜单 → “选项” → “高级设置” → “管理证书”
+
+		MicroSoft edge → 菜单 → “使用 Internet Explorer 打开” → “工具” → “Internet 选项” → “内容”标签页 → “证书”
+
+		可导出证书，选择.BER格式 或者 base64编码格式 (将DER编码后得到的可见字符格式)。
+
+	查看证书：
+
+		详细信息中，包含公钥和使用者相关身份信息。
+
+
+	公钥的作用：
+
+		1. 验证身份				B → 验证 → A
+
+			1. A 产生随机数 r1， 用私钥加密 r1 → r1S						（签名）
+
+			2. A 将 r1和r1S 给 B。 则B有了明文：r1 和 密文：r1S
+
+			3. B 从公共网点上下载 A 的证书。 若 B 无法下载，A也可以将自己的证书一起给B。
+
+			4. B 用 A的证书中的“公钥”，解密 密文：r1S → r2 。 校验 r1 和 r2 是否相等。 		（验证签名）
+
+			5. 若相等，则能确定，数据加密动作，是 A 完成的。
+
+			签名，类似公司加盖公章。具有法律效力（电子签名法）。   
+
+		
+		2. 数据加密：				C 、 D
+
+			1. C 用 D 的公钥加密，将加密数据给D 
+
+			2. D 用自己的私钥解密。
+
+
+项目 模块 简析：
+
+	1. 基础组件 模块  （报文编解码、通信组件、共享内存、数据库操作组件）
+
+	2. 密钥相关 模块  （server、client、 shm、 DB）
+
+	3. 管理终端 模块  （MFC图形界面、win 数据库、配置文件）
+
+	4. 外联接口 模块  （数据加解密、封装）
+
+============================================================================================
+
+
+------项目的思考：
+
+
+	1 更换密钥 如何保证外联应用业务的 连续性
+
+		冗余密钥
+
+
+	2 安全传输平台解决的最主要的问题
+
+		1 密钥的问题		解决对称密钥体系中 密钥的安全分发 
+
+		2 数据加密的问题	
+
+		3 网点 信息系统管理
+
+
+	3 如何保证对称密钥协商过程中的安全性
+
+		具体一点: 如何保证r1  r2 两个随机数的安全性
+
+		采用非对称密钥体系 来保证对称密钥r1 r2的产生
+
+		RSA ECC				DES3
+
+		1) 给A B两个结点产生A(公私密钥对)  B(公私密钥对)
+
+		2) A _ B之间 双向身份认证
+
+		3) r1 r2 A要给B发送r1  要保证r1数据的安全?
+
+			A 产生r1
+
+			A 用 B 的公钥加密r1 扔给B
+
+			B 用自己的私钥解密,得到 r1 
+			
+			同样的道理 r2 也可以按照这个方法 保证r2的安全传输
+
+
+	4 服务器是一个集群
+
+		A			A1  -- A6
+
+		B
+
+		保证 A的密钥和 A1-A6的密钥一致。
+			
+			1）实时密钥同步。 协商后A分发， A1-A6 上部署密钥同步服务器的接收端。
+
+			2）A1-A6 主动从A上下载密钥。 或定时下载。	
+
+				
+	5 结点和结点上下级联
+
+
+		在终端上，同时部署 keymngserver 和 keymngclient 
+
+
+
+============================================================================================
+
+请 设计 一套系统，并能在简历上进行表达。要求表达如下：
+
+
+	我参与了什么项目			----- 安全传输平台	
+
+	项目是干什么(简介) 
+
+	项目是有多少个子系统子模块组成的
+
+	我负责了什么 --- 
+
+		遇到过什么困难、bug （2件）
+
+		造成了什么影响。
+
+		通过什么途径解决的。  获取途径方法、思路 
+
+		解决该问题，对你后期开发有哪些影响。
+
+
+=============================================================================================
+
+我参与的项目是：xxx钢铁2号生产线XXX车轴生产监控系统
+
+	该项目主要完成汽车后轮的驱动轴生产、检测、过程记录。
+
+车轴生产监控系统主要的系统模块有：
+
+	生产车间动力检测、生产车间温度检测、产品质量检测、生产车间数据汇总子模块；
+
+我主要负责的模块由
+
+	生产车间数据汇总子系统：主要完成是一线生产数据收集、存储、显示、分析、报表导出。
+
+	使用的技术：
+
+		后台：Linux 系统进程间通信、信号通信、同步锁、Oracle数据库存储
+
+		前端：MFC类库框架 ODBC机制连接 ORACLE数据库
+
+		组件：动态库实现、封装
+
+=============================================================================================
+
+
+

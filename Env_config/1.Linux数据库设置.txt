@@ -1,0 +1,157 @@
+Linux 操作系统IP地址：192.168.1.16  （以此为例）   192.168.111.81
+
+Linux 操作系统关闭防火墙。
+
+	su - root   密码： 123456  
+
+
+	命令法：root 用户下 service iptables stop   看到三个绿色的 [确定] 说明关闭成功。  临时生效一次，重启时效。
+	
+	图形法：root 用户下 “系统”-->"管理"-->打开“防火墙配置”页面，点击“禁用”，再点击“应用”。
+
+							
+切换成 oracle 用户：su - oracle  【不允许使用root用户，启动oracle数据库】   
+
+[oracle@localhost ~]$ sqlplus /nolog   ----- 借助 sqlplus 工具连接 oracle 数据库。
+
+使用管理员登录数据库：connect /as sysdba		提示：Connected to an idle instance. 说明连接成功。
+
+	    show user 可看到 USER is "SYS"  字样。  
+
+启动Oracle数据库：startup			成功提示：
+
+							ORACLE instance started.
+							
+							Total System Global Area  780824576 bytes
+							Fixed Size		    2217424 bytes
+							Variable Size		  587205168 bytes
+							Database Buffers	  188743680 bytes
+							Redo Buffers		    2658304 bytes
+							Database mounted.
+							Database opened.
+														
+select * from scott.emp; 可查看scott用户下的表。验证是否登录成功
+
+也可以：
+		conn scott
+		select * from tab;		查看scott用户下有哪些表。
+
+============================================================
+
+如果需要关闭数据库，执行如下命令：
+
+关闭Oracle数据库：shutdown immediate 
+ 
+   提示：   	Database closed.
+   	    	Database dismounted.
+  	    	ORACLE instance shut down.
+
+============================================================
+SQL> quit   退出 sqlplus 连接的 Oracle登录。
+
+  	
+------ 启动 TNS 服务！！必须启动！！！
+  		    	
+[oracle@localhost ~]$ lsnrctl start 如果出现错误：
+
+方法：
+		su - root 切换成root用户，执行 hostname oracle。
+		
+		再exit root用户，回到oracle下，重新执行 lsnrctl start命令启动
+
+====================================================================================================
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+【重要】执行以下步骤之前，参看： 《2.Win客户端管理Linux数据库.txt》
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++				
+======================== 创建新用户，测试Linux客户端连接服务器，存储数据库 ==========================
+
+
+1. su - root 切换成root用户。
+
+2. useradd test01 ——创建test01用户
+
+3. passwd test01 ——修改test01用户密码  (提示你密码过于简单之类的，可不理)
+
+4. 此时，如切换成 test01 用户， 连接数据库，执行 sqlplus /nolog 命令，会发现“bash: sqlplus: command not found”错。
+
+   【注意】： 一定使用 "su - test01" 切换。 不能使用 "su test01"
+
+5. 切换成root用户， 执行命令：chmod 777 /home/oracle_11/app/ -R
+
+	如：[root@oracle ~]# chmod 777 /home/oracle_11/app/ -R
+
+6. 将 keymng_linux_bin.tar.gz 包拷贝至/home/test01目录下。解压缩。 得到 bin/ lib/ log/ etc/ 四个目录。
+
+	
+7. 将压缩包中 etc/bash_profile 文件 放置在 /home/test01 目录下，替换掉 .bash_profile 文件。  ---- 配置符合项目需求的环境变量。
+
+
+8. source .bash_profile 或者 exit test01用户，再从新登陆，使.bash_profile生效。【重要！】
+
+   通过 修改环境变量的方法给动态连接器，指定加载动态库的目录位置。
+
+   如果，指定成功。 ldd ./keymngserver   或   ldd ./keymngcliet   显示出所有该可执行文件运行所需要的 动态库目录位置。
+
+   否则，会看到 “====> not found” 字样。
+
+9. sqlplus scott/11@orcl 可在test01用户下 连接数据库。【注意】：此时如忘记添加“@orcl”会看到 ORA-12547: TNS:lost contact 错误。
+
+
+10. 也可以测试 SECMNGADMIN用户： sqlplus SECMNGADMIN/123456@orcl  或者 SECMNG用户： sqlplus SECMNG/SECMNG@orcl
+
+
+
+
+
+
+11. 执行bin/keymngserver文件，会检测共享内存，如不存在则自动创建，并初始化共享内存，创建连接池等一系列初始化操作。
+
+
+11. keymngserver 是一个守护进程，可使用ps -u test01查看。  mystop 结束守护进程。
+
+
+12. 开新窗口，执行 bin/keymngclient文件，显示字符交互界面。此时 log/ 中会对应产生/更新日志。
+
+
+13. 守护进程可以借助kill命令用pid来杀死，也可以使用 bin/mystop脚本文件结束运行。
+
+
+14. ipcs命令可以查看共享内存。ipcrm shm 262151(该号为shmid) 可以释放共享内存。也可以使用 bin/cleanipc 脚本清理。
+
+-------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+================================ 测试win客户端连接服务器，存储数据库 ==========================================
+
+1. 重新启动 bin/keymngserver文件。
+
+2. 打开 SecMngClient_win文件夹 下的 WinMyKeyMngClient-win7-64.exe程序。
+
+3. 打开前，要注意同级目录下的配置文件secmngclient.ini中 SERVER_IP 的值要与Linux服务器IP一致。
+
+4. 点击 “SecMngClient业务”按钮，可进入密钥管理界面。点击“密钥协商”即生成一个固定密钥。存储至数据库
+
+========================IP地址=========================
+
+
+打开网络和共享中心 --> 更改适配器设置 --> 右键“VMware Network Adapter VMnet8”
+
+--> 属性 --> 修改ip地址为一个网关，如：192.168.111.1
+
+对应的将Linux中的网址，修改成该网关下的某一个地址，如： 192.168.111.251
+
+
+========================================================

@@ -1,0 +1,275 @@
+
+MFC 中 大量使用 多态机制：
+
+多态：	1. 继承 2. 父类指针指向子类对象 3. 虚函数重写
+
+优点：
+	代码复用。  编码未来。 模块扩展。
+
+原理：
+	1. 虚函数表
+
+	2. vptr指针。  
+
+class parent
+{
+	public :
+		virtual void print()
+		{
+			printf("I am a parent\n");	
+		}
+}
+
+class child : public parent 
+{
+	public :
+		virtual void print()
+		{
+			printf("I am a child\n");
+		}
+}
+
+class childchild: public prent 
+{
+
+}
+
+void howToPrint(parent *pBase)
+{
+	pBase->print();	
+}
+
+int main(void)
+{
+	parent p1;
+	child c1;
+
+	howToPrint(&p1);
+
+	howToPrint(&c1);
+}
+
+====================================================================================
+
+windows 下 MFC 界面开发：
+
+	1. 密钥协商客户端（图形）--- Linux（文字）
+
+		密钥协商、密钥校验、密钥注销。
+
+	2. 服务器配置管理终端：（图形）
+
+		1. 读、写配置文件 .ini
+
+		2. 管理 服务器配置信息： ip、port、dbname、dbuser、dbpasswd、DSN、USE、PWD
+
+		3. 管理 密钥信息 seckeyid、status、clientid、serverid、time
+
+		4. 管理 网点信息 网点名称、网点编号、网点授权码、网点地址。。。
+
+
+--------------------------------------------
+
+C:\Users\afei\Desktop\09_安全传输平台项目-项目预览-环境测试\SecMngAdmin_win\MySecAdmin.exe
+
+C:\Users\afei\Desktop\09_安全传输平台项目-项目预览-环境测试\SecMngAdmin_win
+
+C:\Users\afei\Desktop\09_安全传输平台项目-项目预览-环境测试\SecMngAdmin_win\secmngadmin.ini
+
+
+系统初始化  
+
+	第一次启动时 读配置文件
+ 
+		若文件不存在, 弹出对话框 让用户输入，保存到.ini配置文件，同时赋值给全局变量
+
+		若文件存在, 赋值给全局变量，用于后续连接数据库。
+
+
+---实现读配置文件：
+
+	在 InitInstance() 中 添加 读配置文件的 功能函数 ReadSecMngCfg ：
+
+	int ret = ReadSecMngCfg(); 
+
+	在 MyAdmin.cpp 中添加 ReadSecMngCfg函数定义：
+
+	在 MyAdminApp.h 中添加声明；
+
+		public：	
+			int ReadSecMngCfg(); 
+
+	实现 ReadSecMngCfg 函数：
+
+		1. 配置文件应该存放在 exe 文件所在目录下，应先，求当前应用程序所在路径。
+
+		2. 封装自定义函数，读配置文件。 添加对应头文件。
+
+			将 CString 类转化成 char * 用到宏  LPCTSTR 和 LPTSTR
+
+
+---创建 Dialog，读配置文件失败，弹窗显示
+
+	“资源视图”--- “Dialog目录”右键，插入Dialog控件。
+
+	设计弹窗界面。		Dialog的ID：	IDD_DIALOG_INITDB
+
+		数据源ID： 	IDC_EDIT_DSN
+
+		用户名ID： 	IDC_EDIT_USER
+
+		密码ID：   	IDC_EDIT_PASSWD
+
+	Ctrl + T 预览界面。
+
+	给 Dialog 添加类：  CDlgInitCfg   包含头文件 DlgInitCfg.h
+
+	CDlgInitCfg dlgInitCfg;
+
+	读取失败，弹窗显示   if (dlgInitCfg.DoModal() == “取消按钮ID”）;
+
+
+---从Dialog中提取数据。
+
+
+	将视图资源关联 类 成员变量。  --- Dialog --- 类向导 --- 成员变量
+
+		CString m_dbDSN
+
+		CString m_dbUID
+
+		CString m_dbPWD
+
+	若用户选择“确定”按钮，UpdateData(TRUE); 将 界面 数据保存到 成员变量 中。  
+
+		若变量值为空 IsEmpty() ，提示用户; AfxMessageBox("不能为空");
+
+
+	若用户选择“取消”按钮，dlgInitCfg.DoModal() == IDCANCEL   直接 return FALSE;
+
+		否则，获取 成员变量 数据保存至 全局变量 。
+
+		
+---定义全局变量文件，统一管理	secmng_globvar.h  	【该头文件只能被引用一次！！！】
+
+
+	CDatabase 类 需要引入 #include <afxdb.h>  --> stdafx.h
+
+
+	创建项目时，数据库支持页面中，选择“仅头文件”可以包含该头文件。也可手动添加。
+
+
+	成功读取配置文件中的数据 和 弹窗后，用户输入的数据，对应存储到全局变量中。
+
+
+	TRY 
+	{
+
+	}
+	CATCH_ALL (e)
+	{
+		e->ReportError();
+	}
+	END_CATCH_ALL
+
+
+
+---测试按钮：
+
+	UpdateData(TRUE); 将 界面 数据保存到 成员变量 中。 
+
+	CDataBase db;
+
+	CString strCon;
+
+	strCon.format("DSN=%s;UID=%s;PWD=%s", 成员变量);
+
+	db.openEx（strCon,CDataBase :: noOdbcDialog）;
+
+	db.close();
+
+
+----连接数据库：
+
+	借助全局变量，将Dialog中用户输入的数据，写入 配置文件 .ini中。
+
+	添加 int CSecMngAdminApp::NewOdbc_Connet() 函数。     MyAdmin.cpp   MyAdmin.h
+
+		CDataBase myDB;
+
+		CString strCon.format（"DSN=%s;uid=%s;pwd=%s", dsn，UID， pwd）  --- ODBC
+
+		myDB.openEx(strCon);
+
+	在 InitInstance() 函数的 中 ReadSecMngCfg(); 之后，调用 ConnectByodbc() 函数 连接数据库。 并判断。
+
+	实现 ConnectByodbc函数，修改 strCon.Format() 函数内部调用，使用全局变量。
+
+	直 接 使用 全局变量 myDB 和 g_pDB; 方便后续逻辑获取数据。
+
+	CDataBase myDB;
+	
+	CDataBase *g_pDB = &myDB; 
+
+
+----参数配置管理界面：
+
+	修改 IDD_DIALOG_CFG 界面 （ 配置管理界面 ）成我们 demo 中的样子：
+
+	服务器后台配置参数--------------------
+
+	    配置信息：
+
+		数据源：
+
+		用户名称：
+
+		密码：
+
+	    服务器启动参数配置：
+
+		服务器IP：	IDC_EDIT_IP
+
+		服务器端口：	IDC_EDIT_PORT
+
+		最大网点个数：	IDC_EDIT_MAXNODE
+
+	    网点信息配置：
+
+		网点编号：
+
+		网点名称：
+
+		网点描述：
+
+-----生成记录类：
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

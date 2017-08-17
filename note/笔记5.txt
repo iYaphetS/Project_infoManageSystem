@@ -1,0 +1,189 @@
+
+密钥协商客户端：	
+
+keymngclient.c		----- 业务。		 
+
+	1. 显示菜单，获取用户需求。  -- 1
+
+		scanf(&num);
+
+	2. 客户端初始化 --- 基本信息 clientID、serverID、autocode、IP、port 
+
+	3. switch(num) {
+
+		case 1:		// 密钥协商
+
+			keymngclient_Agree();
+
+		case 2:		// 密钥校验
+
+			keymngclient_Check();
+
+		case 3:		// 密钥注销
+
+			keymngclient_Revoke();
+
+		case 0：	// 退出
+			
+			exit();
+
+	   }
+
+	4. 展示 结果。
+
+
+keymngclientop.c 	功能实现		----  keymngclientop.h	
+
+							定义 keymngclient 基本信息结构体： clientID、serverID、autocode、IP、port
+
+							int keymngclient_init();
+
+							int keymngclient_Agree() 
+					
+							....			
+
+int keymngclient_init()
+{
+	clientID、serverID、autocode、IP、port  初始化。
+} 
+
+int keymngclient_Agree( keymngclient 基本信息结构体 ) 
+{
+	2. 产生随机数
+
+	3. 组织情求报文	MsgKey_Req {clientid、serverid、authcode、r1、cmdtype}
+
+	4. 编码情求报文		MsgKey_Req --> TLV  （报文编解码组件）
+
+	1. 根据服务器 IP、port 建立连接 (通信组件)
+
+	5. 发送请求报文 
+
+	6. 接收应答报文	MsgKey_Res（TLV）
+
+	7. 解码应答报文 	TLV --> MsgKey_Res 
+
+	8. 根据 rv 判断是否生成密钥	rv = 0 成功、 rv = 1 失败
+
+	9. 利用 r2 、 r1 生成密钥
+
+	10. 写共享内存 （共享内存组件）
+}
+
+int keymngclient_Check()
+{
+	1. 
+
+	2. 
+
+	3. 
+
+	4. 
+}
+
+int keymngclient_Revoke()
+{
+	1.
+}
+
+
+物理组件集成：
+
+	统一通信组件：		libitcastsocket.so	poolsocket.h
+
+	统一报文编解码组件：	libmessagereal.so	keymng_msg.h
+
+	统一共享内存：		myipc_shm.c		myipc_shm.h
+
+	日志组件：		keymnglog.c		keymnglog.h
+
+	
+	keymngclient.c	业务
+
+	keymngclientop.c 功能	keymngclientop.h
+
+============================================================================
+
+密钥协商服务器： 	
+
+keymngserver.c 		-----业务。
+{
+	服务器基本信息初始化 MngServer_InitInfo();
+	
+	监听客户端连接请求： accept()	---> 启动子线程 
+
+	子线回调函数中：
+
+		接收报文  MsgKey_Req --> TLV  （报文编解码组件）
+
+		解码报文   TLV  --> MsgKey_Req --> cmdType
+
+		switch (cmdType) {
+			
+			case 1:		// 密钥协商
+
+				MngServer_Agree(MsgKey_Req *pMsgKey_Req);
+
+			case 2:		// 密钥校验
+
+				MngServer_Check();
+
+			case 3:		// 密钥注销
+
+				MngServer_Revoke();	
+		}
+
+		发送应答报文
+}
+
+keymngserverop.h 
+
+	定义服务器 基本信息结构体： MngServer_Info {clientID、serverID、IP、port、maxnode、shmkey、shmhdl、dbname、dbuser、dbpssswd}
+
+	init MngServer_InitInfo(MngServer_Info *pSrvInfo);  // 传出
+
+	int MngServer_Agree(MngClient_Info *pCltInfo)
+
+	int MngServer_Check(MngClient_Info *pCltInfo)
+
+	int MngServer_Revoke(MngClient_Info *pCltInfo)
+
+
+keymngserverop.c 		功能实现			
+
+	
+int MngServer_Agree(MngServer_Info *pSrvInfo，MsgKey_Req *pMsgKey_Req，unsigned char **outData, int *dataLen)
+{
+	
+	1. 取出 r1 
+
+	2. 生成随机数 r2
+
+	3. 根据r1/r2/算法 生成密钥, 将结果 ---> rv
+
+	4. 组织应答报文 MsgKey_Res{ rv、r2、serverID、clientID、seckeyid }
+
+	5. 编码应答报文	MsgEncode();   MsgKey_Res --> TLV
+
+	7. 写共享内存
+
+	8. 写数据库
+}
+
+int MngServer_Check(MngServer_Info *pSrvInfo，MsgKey_Req *pMsgKey_Req，unsigned char **outData, int *dataLen)
+{
+
+}
+
+int MngServer_Revoke(MngServer_Info *pSrvInfo，MsgKey_Req *pMsgKey_Req，unsigned char **outData, int *dataLen)
+{
+
+}
+
+
+
+
+
+
+
+

@@ -1,0 +1,201 @@
+
+密钥协商客户端：  keymngclient.c	业务
+
+
+	客户端基础信息初始化   struct { }
+
+	while （1） {
+		
+		显示菜单  ---  num
+
+		switch （num） {
+			case 1：// 密钥协商
+
+				clint_Agree( struct );
+
+			case 2: // 密钥校验
+
+				clint_Check( struct );
+
+			case 3：// 密钥注销
+
+				clint_Revoke( struct );
+		}
+
+		显示结果
+	}
+
+
+功能：		keymngclientop.c ---- keymngclientop.h
+
+int clint_init(struct );
+
+int clint_Agree( struct )
+{
+	组织 请求报文 Req 
+
+	编码 请求报文   --- TLV
+
+	建立连接 发送请求报文
+
+	接收服务器 应答报文
+
+	解码 应答报文
+ 
+	根据 rv r1/r2 生成密钥  
+
+	组织 密钥信息结构体
+
+	写共享内存。
+}
+
+int clint_Check( struct );
+
+
+int clint_Revoke( struct )
+{
+	组织 请求报文 Req { clientID、serverID、cmdType、r1、authcode }  cmdType=3
+
+	编码 请求报文   --- TLV
+
+	建立连接 发送请求报文
+
+	接收 应答报文   --- TLV
+
+	解码 应答报文 -- rv
+
+	根据 应答报文中的 seckeyid  修改共享内存中的 status 0 --> 1 失效。
+}
+
+
+密钥协商服务器： keymngserver.c		业务
+
+	创建守护进程
+
+	信号设置捕捉
+
+	初始化服务器基础信息 struct { db } 只读 -- 全局变量
+
+	while (1) {
+
+		等待客户端连接  --- connfd
+
+		启动线程 pthread_Create（ connfd ）
+	}
+
+
+服务器子线程处理函数：
+
+	接收客户端发送的 请求报文  --TLV
+
+	解码 请求报文 struct ---> cmdType 
+
+	switch(cmdType) {
+
+		case 1：// 密钥协商
+
+			server_Agree( 服务器struct，请求报文struct，应答报文out，outLen);
+
+		case 2: // 密钥校验
+
+			server_Check( 服务器struct，请求报文struct，应答报文out，outLen);
+
+		case 3：// 密钥注销
+
+			server_Revoke( 服务器struct，请求报文struct，应答报文out，outLen);
+	}
+
+	发送 应答报文
+
+
+功能：		keymngserverop.c
+
+
+int server_init()
+{
+	初始化服务器基础信息 struct
+
+	打开、创建 共享内存
+
+	创建 数据库连接池
+}
+
+	
+int server_Agree( 服务器struct，请求报文struct，应答报文out，outLen)
+{
+	获取 请求报文 r1, 生成 r2 , 生成密钥
+
+	获取数据库连接
+
+	开启事务
+
+	读取数据库 keysn 表 获取 seckeyid
+
+	组织 应答报文 Res { seckeyid、clientID、serverID、r2、rv}
+
+	组织密钥 结构体 {seckey、seckeyid、clientID、serverID、status}
+
+	写共享内存。
+
+	写数据库。
+
+	关闭事务。释放数据库连接。
+
+	传出 out
+}
+
+int server_Check( 服务器struct，请求报文struct，应答报文out，outLen)
+{
+	
+}
+
+int server_Revoke( 服务器struct，请求报文struct，应答报文out，outLen)
+{
+	根据请求报文中的 clientID、serverID 读共享内存， 获取密钥信息 { seckey、seckeyid、clientID、serverID、status }
+
+	将 status 0 --> 1 失效。
+
+	根据 seckeyid update 数据库 seckeyinfo 表中的 status 0 --> 1 失效。
+
+		update seckeyinfo set status = 1 where seckeyid = xxx;
+
+		在 keymng_dbop.h 里封装函数 执行 上面的 update 语句。  注意：事务开启、关闭。
+
+	组织 应答报文 rv 表示 注销成功、失败。 seckeyid
+	
+	编码 应答报文
+
+	传出 out
+}
+
+共享内存：	keymng_shmop.h
+
+			密钥结构体 {seckey、seckeyid、clientID、serverID、status} 定义。
+
+			读、写共享内存。---- 操作密钥结构体
+
+		keymng_shmop.c	
+
+			.h 中函数实现。
+
+	
+数据库：	keymng_dbop.h
+
+			读 keysn 表 获取 seckeyid
+
+			insert into 写密钥信息 到 seckeyinfo 表 
+
+			update seckeyinfo set status = 1 where seckeyid = xxx; 的函数声明。
+
+		keymng_dbop.c
+			
+			.h 中函数实现。
+
+			
+
+=====================================================================================================
+
+错误	1	error MSB8031: Building an MFC project for a non-Unicode character set is deprecated. You must change the project property to Unicode or download an additional library. See http://go.microsoft.com/fwlink/p/?LinkId=286820 for more information.	C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V120\Microsoft.CppBuild.targets	369	5	MessageMFC
+
+
+工具 -- 选项 -- 调试 -- 符号 -- Microsoft符号服务器 （去除）

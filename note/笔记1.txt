@@ -1,0 +1,88 @@
+加密：
+
+	明文、密文、密钥、算法 --- 三要素:  Y = ax + b
+
+对称加密：
+
+	特征：加密的密钥和解密的密钥 一致。	
+
+	优点：加密速度快、加密效率高
+
+	缺点：密钥分发困难
+
+	场景：文件、数据加密
+
+非对称加密：
+
+	特征：加密的密钥和解密的密钥 不一致。 （公钥、私钥）
+
+	缺点：加密速度慢、加密效率低
+
+	优点：密钥分发容易
+
+	场景：身份认证、数据保护。
+
+
+
+数据库：
+
+	MySQL：
+
+		基于数据库的数据管理系统。   root： 用户 1：N 数据库
+
+	Oracle：
+
+		基于用户的数据管理系统。      orcl：数据库 1：N 用户 ： 表	
+
+
+新创建用户的 .bash_profile:
+
+ .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
+
+---------------------------------------------------
+
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+	. ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+umask 022 
+ORACLE_BASE=/home/oracle_11/app
+ORACLE_HOME=$ORACLE_BASE/oracle/product/11.2.0/db_1
+ORACLE_SID=orcl
+PATH=$PATH:./:$HOME/bin:$ORACLE_HOME/bin
+LD_LIBRARY_PATH=./lib:$HOME/lib:/usr/lib:$ORACLE_HOME/lib 
+#LANG=C 
+export ORACLE_BASE ORACLE_HOME ORACLE_SID PATH LD_LIBRARY_PATH 
+
+NLS_LANG=AMERICAN_AMERICA.ZHS16GBK; export NLS_LANG
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

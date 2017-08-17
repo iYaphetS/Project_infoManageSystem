@@ -1,0 +1,79 @@
+
+
+int teacherEncode(Teacher *pTeacher, unsigned char **out, int *outlen);   teacher --> TLV (unsigned char *)
+
+
+int teacherDecode(unsigned char *inData, int len, Teacher **pTeacher); 	TLV (unsigned char *)--> teacher
+
+
+传入参数、传出参数、传入传出参数。
+
+传出参数：
+
+	1. 指针做为函数参数。
+
+	2. 在函数内部 写操作。
+
+	3. 函数调用之前，指针指向的空间有效，但是可以无意义。
+
+	4. 函数调用之后，充当函数返回值。
+
+
+指针作为函数参数：
+
+	1. 充当函数返回值。
+
+	2. 回到函数（函数指针）
+
+	3. 结构体 传参。
+
+
+报文编码：
+
+	int :
+		DER_ItAsn1_WriteInteger(ITCAST_UINT32 integer, ITASN1_INTEGER **ppDerInteger);			int --> TLV
+
+	char []:
+
+		1. DER_ITCAST_String_To_AnyBuf();		char [] --> ANYBUF
+
+		2. DER_ItAsn1_WritePrintableString();		ANYBUF  --> TLV（ANYBUF）
+
+	    或：
+		EncodeChar（）				char [] -->  TLV（ANYBUF）
+
+	Teacher：
+
+		DER_ItAsn1_WriteSequence();		ANYBUF （int char[] char *） --> TLV (ANYBUF )
+
+
+	
+int teacherEncode(Teacher *pTeacher, unsigned char **out, int *outlen)
+
+{
+	
+		
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,84 @@
+
+----测试“安全传输平台”admin客户端
+
+	
+----创建一个TNS服务
+
+	1. SQL Developer成功安装后，在“配置和移植工具”中打开“Net Configuration Assistant”工具
+	
+	2. 选择“本地网络服务名配置”，点击“下一步”选择“添加”。
+	
+	3. “服务名”添你要连的数据库的名字【orcl】（我们使用的都是这数据库)， 点击“下一步”，选择“TCP” 。
+	
+	4. “主机名”Linux服务器所在主机IP地址。端口默认1521不变。
+	
+	5. “是，进行测试”。初次执行，对话框中会显示“测试未成功。”。选择“更改登录”，输入连接的用户名和密码。
+	
+	6. 如：“用户名”输入：SECMNGADMIN ，“密码”输入：123456 “确定”。会显示：“正在连接...测试成功。”点击“下一步”
+	
+	7. 为“网络服务名”输入名称，如：【linkService】。点击“下一步”。
+
+	8. 询问“是否配置另一个网络服务名”，选择“否”。点击“下一步”。显示：“网络服务名配置完毕”。点击“下一步”、“完成”。
+	
+	9. 微软在配置ODBC驱动的时候，要求输入一个TNS服务。以上完成了TNS服务的配置。 
+	
+
+----启动 MySecAdmin 客户端
+
+	1. 将MySecAdmin.exe所在目录下的“secmngadmin.ini”文件删除【重要】。双击 MySecAdmin.exe
+	
+	2. 由于找不到配置文件。该exe会提示"读取文件失败"。点击“确定”。弹出对话框：“配置数据库信息”。
+	
+	3. 【保留该对话框】。找到 win 系统中C:\Windows\SysWOW64\odbcad32.exe 双击打开。
+	
+	4. 选择“系统DSN”标签，点“添加”。下拉选择Oracle in OraClient_home1。点“完成”。
+	
+	5. 弹出的 Oracle ODBC Driver Configuration对话框。
+	
+	6. 在Data Source Name中填入 linkService（可以自定义）。也可以是其他名称。	Description 【忽略不填】
+	
+	7. 在TNS Service Name中下拉 选择 LINKSERVICE 。【注意】将该字符串后面空格删除。	UserID【忽略不填】
+	
+	8. 点击“Test Connection”按钮。在弹出的对话框中输入“SECMNGADMIN”和密码“123456”
+	
+	9. 显示Connection successful说明配置成功。
+	
+	10. 点击“ok”，点击“确定”。退出。重新唤出2步中“配置数据库信息”对话框。
+	
+	11. 【重新调出刚才保留的对话框】。数据源：LINKSERVICE 用户名：SECMNGADMIN 密码：123456 测试。成功。完成。
+
+	12. 发现，MySecAdmin.exe所在目录下，多了一个“secmngadmin.ini”文件，内部记录着：
+
+		DSN = LINKSERVICE
+		UID = SECMNGADMIN
+		PWD = 123456
+
+	13. 再次启动MySecAdmin.exe，它能自动读secmngadmin.ini文件找到对应的TNS。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

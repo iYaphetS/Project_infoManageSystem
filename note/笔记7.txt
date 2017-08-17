@@ -1,0 +1,212 @@
+
+Oracle 数据库 启动：
+
+	su - oracle 	切换用户
+
+	sqlplus /nolog
+
+	connect / as sysdba
+
+	startup
+
+	lsnrctl start	启动 TNS 服务
+
+
+Oracle 数据库 SQL语句：
+
+	select：
+		select * from dept;
+
+		select 列名[, 列名] from 表名[, 表名];
+
+		select 列名 from 表名 where  order by.
+
+	insert：
+
+		insert into 表名(列名) values(对应列值)。
+
+		insert into dept(deptno, dname, loc) values(50, '研发', '深圳');
+
+	update：
+
+		update 表名 set 列名=列值 where 条件。
+
+		update dept set dname='danme50', loc= '50loc' where deptno = 50;
+
+	delete：
+
+		delete from 表名 where 条件。
+
+		delete from dept where deptno >= 50;
+
+事务特性：
+
+	保证数据库中的数据操作 一致。 要么都成功、要么都失败。
+
+	四大特性：
+
+		原子性、一致性、隔离性、持久性。
+
+DML：
+	curd：  增删改查：select：insert：insert：delete
+
+DDL：
+	create、alter、grant、truncate、drop ... 
+
+DCL：	
+	commit、rollback
+
+	
+事务的控制：
+
+	开启：	取决于数据库使用的 引擎。
+		
+		Oracle、mysql 自动开启事务。	Oracle、mysql -- 手动。
+
+		显式开启：
+
+			XXX_begin();
+
+		隐式开启：
+
+			借助一条 DML 语句。
+	结束：(关闭)
+
+		显示结束：
+
+			执行 commit、rollback。
+
+		隐式结束：
+
+			执行 DDL 语句。 --> commit
+
+			quit、宕机、断电 --> rollback。
+
+==============================================================
+ c/s 模式
+
+初始化连接池：
+
+	int dbPool_init(int num, char *ip, int port, char *dbname, char *user, char *passwd, void **handle);
+
+销毁连接池：
+
+	int dbPool_destroy(void *handle);
+
+取出连接：
+
+	int dbPool_getconn(void *handle, int *connfd);
+
+放回连接：
+
+	int dbPool_putconn(void *handle, int connfd, int flg);    // 0: 需要修复。 ret == IC_DB_CONNECT_ERR
+
+	
+执行非查询 SQL 语句：
+
+	int dbPool_nSelectSql(int connfd，char *sql);
+
+开启事务：
+
+	int dbPool_BeginTrans();
+
+提交事务：
+
+	int dbPool_CommitTrans();
+
+回退事务：
+
+	int dbPool_RollbackTrans();
+
+执行查询 SQL 语句：
+
+	int dbPool_SelectSql(int connfd，char *sql, unsigned char **out, int *outlen);
+
+--------------------------------------
+
+游标：
+
+使用一般步骤：
+
+	1. 创建游标：	游标 是为某一次查询而生的。
+
+	2. 打开游标：	游标一旦打开成功：
+
+				1） 结果集已经存储至 本端。
+
+				2） 游标指向 结果集中的首行。
+
+	3. 提取数据：	一次 fetch 只能提取 一行。 通常结合 while 使用。  break
+
+			100、 1403
+
+	4. 关闭游标。
+
+-----------------------------------------
+
+使用那些表：
+
+	1. 查询 seckeyid 的值时，用数据库中的 keysn表中的 ikeysn列
+											开启事务
+		查询 ikeysn列 ——> seckeyid					---select										
+		++									
+		更新 update ikeysn列						---update
+											
+
+		int getKeyid（void *handle, int *seckeyid）;
+
+
+	2. 做 密钥信息持久化备份是， 用数据库中的 seckeyinfo 表。
+											
+		插入 insert into 密钥信息到 seckeyinfo 				---insert
+											关闭事务
+		int insertSeckeyInfo(void *handle, NodeSHMInfo *nodeSHMInfo;）;
+
+
+============================================
+
+base64编码：
+
+	Oracle 	9i	varchar2  1024 -- 2048  -- 4096	
+
+				： 要求存储至内部的数据必须是 可见字符。
+
+
+			Blob:	二进制   按照 Oracle 编码格式 编码后。
+
+			Clob:	字符
+			
+	编码规则：	3 x 8 = 4 x 6;
+
+			10101010	10101110	10101010
+
+			00101010	00101010	00111010	00101010
+
+			保证显示的数据全部是 可见字符。  A-Z a-z 0-9 		26 + 26 + 10 + ‘+’+ ‘\’ , "=" 用来站位， 表结束。
+	
+	
+			
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	

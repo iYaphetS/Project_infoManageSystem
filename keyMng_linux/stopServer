@@ -1,0 +1,17 @@
+#!/bin/bash
+
+myuser=`whoami`
+
+mypid=`ps -u ${myuser} | grep keymngserver | awk {'print $1'}`
+
+if [ -z ${mypid} ]; then
+	echo 'keymngserver is not start'
+	exit 1
+fi
+
+kill -12 $mypid
+echo 'the keymngserver is killed'
+
+
+
+

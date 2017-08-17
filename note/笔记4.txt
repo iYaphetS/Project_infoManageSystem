@@ -1,0 +1,115 @@
+
+
+项目标题：
+
+	安全传输平台
+
+项目简介：
+
+	2/3句话。
+
+项目模块：
+
+	你负责哪些模块：
+
+	你负责的模块中用到哪些技术。
+
+	开发过程中，你碰到了哪些问题。
+
+	解决该问题的思路，方法是什么，如何想到的。
+
+	解决了该问题，对你后续开发，有哪些影响。
+
+========================================================================================
+
+int shmget(key_t key, size_t size, int shmflg);				创建共享内存
+
+	key_t key：非0 数据。 0x0011	描述共享内存是否是共享状态。（shared 非0 --> 0 private）
+
+	size_t size：共享内存大小。
+
+	int shmflg：	IPC_CREAT：创建共享内存， 打开一个已有的共享内存
+
+			IPC_EXCL：判断共享内存是否存在。
+
+			mode_flags：内存访问权限（八进制 0644）
+
+	返回： 	成功： shmid
+
+		失败：-1 errorno
+
+
+void *shmat(int shmid, const void *shmaddr, int shmflg);		关联共享内存到 进程
+
+	int shmid：shmget返回值（shmid）
+
+	const void *shmaddr：通常传NULL
+
+	int shmflg：	0： 读写
+
+			SHM_RDONLY： 只读
+		
+	返回值：	成功： 地址值
+
+			失败： （void *）-1
+
+
+int shmdt(const void *shmaddr);						取消关联
+
+	const void *shmaddr: shmat的返回值
+
+	返回： 	成功： 0
+
+		失败：-1 errorno	
+
+
+int shmctl(int shmid, int cmd, struct shmid_ds *buf);			销毁、释放共享内存
+
+	int shmid：shmget返回值（shmid）
+
+	int cmd：	IPC_STAT： 获取共享内存状态。	参数3 传出。
+
+			IPC_SET： 设置共享内存状态。	参数3 传入。
+
+			IPC_RMID：标记共享内存即将被销毁。	参数3 NULL
+
+	返回： 	成功： 0
+
+		失败：-1 errorno
+	
+================================================================================================
+
+
+key        shmid      owner      perms      bytes      nattch     status      
+0x00000011 3342336    testSZ03   644        256        4              
+
+key        shmid      owner      perms      bytes      nattch     status      
+0x00000000 3342336    testSZ03   644        256        2          dest 
+
+
+key --> 0x0011 --> 0x0000 ( PRIVATE状态 )
+
+
+Linux内核管理共享内存：
+
+	引用计数 + key 值
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	

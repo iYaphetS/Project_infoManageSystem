@@ -1,0 +1,5 @@
+cp makefile inc/DAEsqlDB.h test/testDAEsqlDB.c lib/libDAEsqlDB.so /tmp/DAEsqlDB
+cd /tmp
+tar cvf $HOME/tar/DAEsqlDB_linux_bin.tar DAEsqlDB
+cd $HOME/ORADBlib
+

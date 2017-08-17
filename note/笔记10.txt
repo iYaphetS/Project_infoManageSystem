@@ -1,0 +1,433 @@
+
+=================================================== 通过odbc驱动 【读、写】 数据库：
+
+select * from SRVCFG where key = 'secmng_server_ip';  --IP
+
+select * from SRVCFG where key = 'secmng_server_port';  --Port
+
+select * from SRVCFG where key = 'secmng_server_maxnetnum';  --maxnode
+
+
+-----用odbc机制，生成 关联类 操作数据库。
+
+
+	-----借助odbc驱动 操作数据库 【原理】 ：
+
+		VS编译器 会给我生成一个【记录类】：就是数据库中的表，在MFC程序中的映射。
+
+		记录类对象 <-------> 保存数据库 （把C++对象数据 持久化，保存到数据库中）
+
+
+	-----生成记录类：对应两个文件：SECMNGSRVCFG.cpp 	SECMNGSRVCFG.h
+	
+			
+	使用“类向导” 生成 数据库中 SRVCFG 表对应的记录类 ---> CSECMNGSRVCFG
+
+		生成方式参见：讲义
+
+
+	查看 记录类头文件：SECMNGSRVCFG.h：		SECMNGSRVCFG.CPP：
+
+		CSECMNGSRVCFG 类有两个 成员变量： CStringA m_KEY 和 CStringA m_VALUDE
+
+		CSECMNGSRVCFG 类的父类： CRecordset ：		
+
+						包含：	构造函数使用时需要一个连接。CDatabase* pDatabase = NULL
+
+							open（）函数。
+
+							游标操作：//cursor operations  
+
+								   void MoveNext(); ......
+
+							AddNew(); Edit(); Update(); Delete();
+	CStringA --> CString;
+
+	#error --> //#error 						
+
+
+-----使用关联类：
+
+	在 CfgView.cpp 中引入头文件： #include "SECMNGSRVCFG.h"
+
+	给 IDD_DIALOG_CFG（对应 CfgView 类）中的 IP、端口、网点个数。  使用“类向导”关联成员变量：
+
+	CfgView.h 中会自动添加下面的变量：
+
+		CString m_strsrvip
+
+		CString m_strsrvport
+
+		CString m_strsrvmaxnode
+
+
+
+-----使用变量操作数据库， 查询IP ：
+
+	在 CCfgView 类上，使用“类向导”重载 OnInitialUpdate 函数。
+
+	extern CString *g_pDB; 			声明全局变量
+
+	CSECMNGSRVCFG srvCfgSet(g_pDB); 	使用全局变量 定义对象 srvCfgSet。并传参入 连接数据库用的连接串 g_pDB。
+
+	正常查 SRVCFG 表中 服务器ip SQL语句：	select * from secmng.srvcfg where key = 'secmng_server_ip';
+
+	在记录类中，表达该功能使用：	srvCfgSet.m_strFilter.Format("key = '%s'", "secmng_server_ip");  是一种odbc固定转换SQL的语法。
+
+	Open()函数：
+
+		参1：4种取值：
+
+			dynaset,        // uses SQLExtendedFetch, keyset driven cursor
+			snapshot,       // uses SQLExtendedFetch, static cursor 		快照
+			forwardOnly,    // uses SQLFetch
+			dynamic
+
+		参2： NULL 	
+
+			表示使用 select * 
+
+		参3：enum OpenOptions { 12 种取值 }
+
+		srvCfgSet.Open(CRecordset::snapshot, NULL, CRecordset::none)  表示按照过虑条件使用 select * 查询。
+
+		!is_EOF() 如果有结果， 成员 m_KEY、m_VALUDE 中则包含值。   
+
+		【注意 空格】: srvCfgSet.m_KEY.TrimLeft(); srvCfgSet.m_KEY.TrimRight();
+
+
+	使用 TRY...catch... 捕获异常。
+
+	TRY
+	{
+
+	}
+	CATCH_ALL(e)
+	{
+		e->ReportError();
+		return;
+	}
+	END_CATCH_ALL;
+
+	srvCfgSet.TrimLeft/Right()
+	m_strsrvip = srvCfgSet.m_VALUDE;  使用变量承接 value 值。
+
+	UpdateData(FALSE);  将变量值，传递给 界面显示。
+
+	
+-------查询 port：
+
+	查询同一张表，不应打开多次。一次打开，反复查询。
+
+	srvCfgSet.Requery(); 使用这个函数，可以完成该功能。
+
+	但，应该在此之前，修改过滤器：	srvCfgSet.m_strFilter.Format("key = '%s'", "secmng_server_port");
+
+	if (!srvCfgSet.IsEOF()) 判断是否到达末尾位置。（验证数据库是否中有数据值）
+
+-------查询 maxnetnum：
+
+
+------反复查询 易出现问题。
+
+	win 平台odbc驱动，对 Oracle 9 以后的数据库支持不稳定。
+
+	srvCfgSet.Requery();调用的时候，常会出现崩溃错误。
+
+踩内存
+
+		
+============================================= 通过odbc驱动 【写】 数据库：
+
+------用到的函数：
+
+	select * from  表  where key =‘secmng_server_ip’  --》 有 --》 更新；  没有---》插入
+
+
+	srvCfgSet.m_strFilter.Format();
+
+	srvCfgSet.Open(CRecordset::snapshot, NULL, CRecordset::none)
+
+	if (isEOF());	--》 有 --》 更新；  没有---》插
+
+
+	g_pDB->BeginTrans();			开启事务。					
+
+	g_pDB->Rollback();			回退事务。
+
+	g_pDB->CommitTrans();			提交事务。
+
+
+	srvCfgSet.IsEOF()			判断是否有数据。				【1】		
+
+		有：update --- SQL
+
+			srvCfgSet.Edit();			修改该数据。			【2】
+
+			srvCfgSet.m_VALUDE = m_strsrvip;	修改成新值。
+
+			srvCfgSet.Update();			更新数据。			【3】
+
+		无：insert -- SQL
+
+			srvCfgSet.AddNew();			添加新值。			【4】			
+
+			srvCfgSet.m_KEY = "secmng_server_ip"	根据KEY确定位置。
+
+			srvCfgSet.m_VALUDE = m_strsrvip;	修改成新值。
+
+			srvCfgSet.Update();			更新数据。
+
+
+
+-------修改“保存”按钮回调函数：
+
+	ID：IDC_BUTTON_SERVERCFGSAVE
+
+
+	UpdateData（TRUE）; 获取界面的值保存到变量，并判断是否为空值。
+
+	开始事务。g_pDB->BeginTrans(); 
+
+	借助数据库连接串g_pDB ，创建关联类对象。	CSECMNGSRVCFG srvCfgSet(g_pDB);
+
+
+	设置过滤器：	srvCfgSet.m_strFilter.Format("key = '%s'", "secmng_server_ip");
+
+	按过滤条件，使用查询语句，打开查询。	srvCfgSet.Open(CRecordset::snapshot, NULL, CRecordset::none)
+
+	srvCfgSet.IsEOF() 判断是否有数据修改。	
+
+		有：
+			srvCfgSet.Edit();	修改该数据。			
+	
+			srvCfgSet.m_VALUDE = m_strsrvip;	修改成新值。
+
+			srvCfgSet.Update();			更新数据
+
+		没有：
+			srvCfgSet.AddNew();			添加新值。					
+
+			srvCfgSet.m_KEY = "secmng_server_ip"	根据KEY确定位置。
+
+			srvCfgSet.m_VALUDE = m_strsrvip;	修改成新值。
+
+			srvCfgSet.Update();			更新数据。
+
+
+	从新修改过滤器， 查询port。	srvCfgSet.m_strFilter.Format("key  = '%s'", "secmng_server_port");
+
+	srvCfgSet.Requery(); 	再次执行查询。
+
+	根据 srvCfgSet.IsEOF() 判断是否有数据修改。  	有：Edit();、修改 m_VALUDE、Update();
+
+							无：AddNew(); 、修改 m_KEY 和 m_VALUDE、Update();
+
+
+	在修改过滤器， 查询 最大网点个数maxNode。	srvCfgSet.m_strFilter.Format("key  = '%s'", "secmng_server_port");
+
+	srvCfgSet.Requery(); 	再次执行查询。
+
+	根据 srvCfgSet.IsEOF() 判断是否有数据修改。  	有：Edit();、修改 m_VALUDE、Update();
+
+							无：AddNew(); 、修改 m_KEY 和 m_VALUDE、Update();
+	
+	提交事务 或 rollback 回滚事务。	
+
+
+----------------------------------------------
+
+	RFX_Text(pFX, _T("[KEY]"), m_KEY);
+	RFX_Text(pFX, _T("[VALUDE]"), m_VALUDE);  --SECMNGSRVCFG.cpp  42/43
+	
+	
+
+================================== 网点管理模块 ===========================
+
+------界面设计：
+
+	ID：IDD_DIALOG_NETMNG
+
+	添加组件：
+
+		List contrl: 属性： Icon --> Report : 表示按行显示数据。  ID：IDC_LIST_SECNODE
+
+		Button：“创建”“删除”“修改”“授权码”
+
+		check box： ID：IDC_CHECK_TIME
+
+		Data Time picker： ID：IDC_DATETIMEPICKER1、IDC_DATETIMEPICKER2 （默认）
+
+	编辑完成可 预览 查看样式。
+
+
+
+------编写 List contrl 控件，实现表格样式显示数据：
+
+
+	使用“类向导”对该控件添加 对应的成员变量。 m_listSecNode (注意“类别”选项：“Contrl”默认)  【CListCtrl类】
+
+
+	重写 CDlgNetInfo 的 OnInitialUpdate()函数。设置  显示数据的样式：
+
+		在 CDlgNetInfo.h 中 添加 public：CImageList m_imageList; 成员变量。
+
+		ImageList_Create(): 创建指定格式的图片列表。
+
+		Attach(): 把某一对象附给 另外一个对象。					http://www.cppblog.com/lateCpp/articles/140631.html
+
+		SetImageList() ：设置图片列表的显示样式。	LVSIL_SMALL： 16 x 16 		CListCtrl 类 成员函数。	
+
+		GetClientRect() ：获取窗口客户端大小。
+
+		dwExStyle = ListView_GetExtendedListViewStyle(); 	：获取控件当前显示状态。并保存。
+
+		dwExStyle |= LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES;	：选择一行 并 添加 格栅。
+
+		ListView_SetExtendedListViewStyle();		设置控件显示状态。
+
+		向当前项目中添加 图片列表用到的 Bitmap。	ID：IDB_BITMAP_SECNODE
+
+
+
+	向 m_listSecNode（List contrl 控件）中插入 一行 数据。 
+
+		封装函数 int CDlgNetInfo::DbInitListSecNode(CString &ID, CString &Name, CTime &time, int state, int authcode) 完成插入操作。
+
+		在 CDlgNetInfo.h 中 添加 函数 声明。
+
+		实现 DbInitListSecNode()函数：
+
+			InsertItem();		插入第0列数据			CListCtrl 类 成员函数。
+
+				参数：typedef struct tagLVITEMW { ..... }
+
+				lvi.mask 显示数据的方式。文字、图片
+
+				   .Item
+
+				   .subItem
+
+			SetItem();		插入第1/2/3/4.../n列数据
+
+
+
+	实现 Button “创建”的回调函数：
+
+		组织数据，调用 DbInitListSecNode 向 控件 List contrl 中 插入一条数据。   
+
+		完善：读取数据库组织数据。
+
+			
+-------实现 模糊查询 功能：
+
+	修改“查询”Button ID：IDC_BUTTON_SEARCH。 编写回调函数。
+
+	给 数据库中的 secNode 表 创建 记录类：	CSECMNGSECNODE		SECMNGSECNODE.h		SECMNGSECNODE.cpp 
+
+		CStringA --> CString
+
+		double  --> int 
+
+		RFX_Double  -->  RFX_Int
+
+		#error  -->  //#error
+
+		DlgNetInfo.cpp 中包含 SECMNGSECNODE.h 头文件。
+
+	操作复选框：
+
+		ID：IDC_CHECK_TIME
+
+		GetDlgItem()函数：根据控件资源ID，获取类对象。小控件适用。
+
+		当 复选框被选中 GetCheck() == BST_CHECKED 时
+
+			根据全局变量 g_pDB 生成记录类对象。
+
+			Open(CRecordset::snapshot, NULL, CRecordset::none) 打开数据库操作。
+
+			查询成功，数据值保持在 记录类的 成员变量中。
+
+			给控件 datetimepicker 分别在 CDlgNetInfo 类中添加成员变量：m_dateBegin、m_dateEnd
+
+			使用 DbInitListSecNode() 函数，逐行向 List contrl 控件中插入数据。
+
+			每处理完一行数据，使用 MoveNext 滚动游标。处理下一行。  while 结构在 IsEOF() == True 结束。
+
+
+-------实现 “删除”Button 功能：
+
+	删除界面数据：
+
+		pos = GetFirstSelectedItemPosition():  	获取哪行被选中了。	
+	
+		item = GetNextSelectedItem（pos）;	根据上面的位置，获取行号。从0计数。
+
+		str = GetItemText（item , n);		（非删除数据必备函数）根据行号，获得第n列的数据内容。  提示用户，哪行正在被删除。
+
+		DeleteItem（item）;			根据行号，删除该行数据。
+
+
+	删除数据库数据：
+
+		开事务。
+
+		创建记录类对象。(根据g_pDB连接)
+
+		strFilter.Format()。过滤
+
+		Open（snapshot, NULL, none）;
+
+		if (!IsEOF())
+			
+			Delete();	
+
+				
+--------实现 “更新”Button 功能：
+
+	获取 pos  	POSITION pos = m_listSecNode.GetFirstSelectedItemPosition();
+
+	获取 item 	nItem = m_listSecNode.GetNextSelectedItem(pos);
+
+	获取文本 	strID = m_listSecNode.GetItemText(nItem, 0);
+		
+			name = m_listSecNode.GetItemText(nItem, 1);
+			time = m_listSecNode.GetItemText(nItem, 2);
+			node = m_listSecNode.GetItemText(nItem, 3);
+			state = m_listSecNode.GetItemText(nItem,4);
+			
+	在Dialog中展示  iD/name/time/node/state
+
+	用户重新编辑 	iD/name/time/node/state 
+
+	给“保存”按钮添加回调：
+
+		1. updatedate(T)   ---》 保存至 dialog 的成员变量中
+
+		2. 创建记录类对象	strFilter.format  open()  isEoF()  Edit() - update();  更新数据库
+
+		3. 写入 listcontrl 界面	DbInitListSecNode(iD, name, time, node, state);
+
+	显示更新结果。
+	
+
+
+
+
+
+	
+
+	
+
+	
+
+	
+
+		
+
+
+		
+
+		 
+
